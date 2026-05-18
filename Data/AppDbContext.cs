@@ -17,6 +17,14 @@ public class AppDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(builder);
 
+        builder.Entity<Employee>()
+            .Property(e => e.Salary)
+            .HasPrecision(18, 2);
+
+        builder.Entity<Project>()
+            .Property(p => p.Budget)
+            .HasPrecision(18, 2);
+
         builder.Entity<EmployeeProject>()
             .HasKey(ep => new { ep.EmployeeId, ep.ProjectId });
 
