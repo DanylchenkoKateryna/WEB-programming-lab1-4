@@ -1,0 +1,15 @@
+@model lab1_4.Models.Employee
+@{ ViewData["Title"] = "Delete Employee"; }
+
+<h1>Delete Employee</h1>
+<div class="alert alert-danger">Are you sure you want to delete <strong>@Model.FullName</strong>?</div>
+<dl class="row col-md-4">
+    <dt class="col-sm-4">Email</dt><dd class="col-sm-8">@Model.Email</dd>
+    <dt class="col-sm-4">Position</dt><dd class="col-sm-8">@Model.Position</dd>
+    <dt class="col-sm-4">Projects</dt><dd class="col-sm-8">@Model.EmployeeProjects.Count</dd>
+</dl>
+<form asp-action="Delete" method="post">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

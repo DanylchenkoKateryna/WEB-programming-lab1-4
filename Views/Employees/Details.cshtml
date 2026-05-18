@@ -1,0 +1,36 @@
+@model lab1_4.Models.Employee
+@{ ViewData["Title"] = "Employee Details"; }
+
+<h1>@Model.FullName</h1>
+<div class="row">
+    <div class="col-md-6">
+        <dl class="row">
+            <dt class="col-sm-4">Email</dt><dd class="col-sm-8">@Model.Email</dd>
+            <dt class="col-sm-4">Position</dt><dd class="col-sm-8">@Model.Position</dd>
+            <dt class="col-sm-4">Department</dt><dd class="col-sm-8">@Model.Department</dd>
+            <dt class="col-sm-4">Hire Date</dt><dd class="col-sm-8">@Model.HireDate.ToString("dd.MM.yyyy")</dd>
+            <dt class="col-sm-4">Salary</dt><dd class="col-sm-8">@Model.Salary.ToString("C")</dd>
+        </dl>
+    </div>
+</div>
+
+<h3 class="mt-4">Projects (@Model.EmployeeProjects.Count)</h3>
+<div class="row g-3">
+    @foreach (var ep in Model.EmployeeProjects)
+    {
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6>@ep.Project.Name</h6>
+                    <span class="badge bg-secondary">@ep.Role</span>
+                    <span class="badge bg-info">@ep.Project.Status</span>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="mt-4">
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-secondary">Edit</a>
+    <a asp-action="Index" class="btn btn-outline-secondary">Back</a>
+</div>

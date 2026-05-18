@@ -1,0 +1,12 @@
+version: '3.8'
+services:
+  projectmanager:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - pm_data:/data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+volumes:
+  pm_data:

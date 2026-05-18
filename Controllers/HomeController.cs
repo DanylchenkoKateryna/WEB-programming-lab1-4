@@ -1,32 +1,32 @@
-using lab1_4.Models;
+using lab1_4.Data;
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 
-namespace lab1_4.Controllers
+namespace lab1_4.Controllers;
+
+public class HomeController : Controller
 {
-    public class HomeController : Controller
+    private readonly AppDbContext _context;
+
+    public HomeController(AppDbContext context)
     {
-        private readonly ILogger<HomeController> _logger;
-
-        public HomeController(ILogger<HomeController> logger)
-        {
-            _logger = logger;
-        }
-
-        public IActionResult Index()
-        {
-            return View();
-        }
-
-        public IActionResult Privacy()
-        {
-            return View();
-        }
-
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
+        _context = context;
     }
+
+    public async Task<IActionResult> Index()
+    {
+        var stats = new
+        {
+            Employees = await _context.Employees.CountAsync(),
+            Projects = await _context.Projects.CountAsync(),
+            ActiveProjects = await _context.Projects.CountAsync(p => p.Status == lab1_4.Models.ProjectStatus.Active)
+        };
+        ViewBag.Stats = stats;
+        return View();
+    }
+
+    public IActionResult Privacy() => View();
+
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult Error() => View(new lab1_4.Models.ErrorViewModel { RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier });
 }

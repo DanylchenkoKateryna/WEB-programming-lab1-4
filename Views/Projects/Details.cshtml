@@ -1,0 +1,56 @@
+@model lab1_4.Models.Project
+@{ ViewData["Title"] = Model.Name; }
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>@Model.Name</h1>
+    <div class="d-flex gap-2">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a asp-controller="Chat" asp-action="Index" asp-route-projectId="@Model.Id" class="btn btn-info">Open Chat</a>
+            <a asp-action="AssignEmployee" asp-route-id="@Model.Id" class="btn btn-secondary">Assign Employee</a>
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Edit</a>
+        }
+        <a asp-action="Index" class="btn btn-outline-dark">Back</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <dl class="row">
+            <dt class="col-sm-4">Status</dt><dd class="col-sm-8"><span class="badge bg-success">@Model.Status</span></dd>
+            <dt class="col-sm-4">Priority</dt><dd class="col-sm-8"><span class="badge bg-dark">@Model.Priority</span></dd>
+            <dt class="col-sm-4">Start</dt><dd class="col-sm-8">@Model.StartDate.ToString("dd.MM.yyyy")</dd>
+            <dt class="col-sm-4">End</dt><dd class="col-sm-8">@(Model.EndDate?.ToString("dd.MM.yyyy") ?? "—")</dd>
+            <dt class="col-sm-4">Budget</dt><dd class="col-sm-8">@Model.Budget.ToString("C")</dd>
+            <dt class="col-sm-4">Client</dt><dd class="col-sm-8">@(Model.ClientName ?? "—")</dd>
+        </dl>
+        <p>@Model.Description</p>
+    </div>
+    <div class="col-md-7">
+        <h4>Team (@Model.EmployeeProjects.Count members)</h4>
+        <table class="table table-sm table-striped">
+            <thead><tr><th>Name</th><th>Role</th><th>Since</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var ep in Model.EmployeeProjects)
+                {
+                    <tr>
+                        <td><a asp-controller="Employees" asp-action="Details" asp-route-id="@ep.Employee.Id">@ep.Employee.FullName</a></td>
+                        <td>@ep.Role</td>
+                        <td>@ep.AssignedAt.ToString("dd.MM.yyyy")</td>
+                        <td>
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <form asp-action="RemoveEmployee" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="projectId" value="@Model.Id" />
+                                    <input type="hidden" name="employeeId" value="@ep.EmployeeId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

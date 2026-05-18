@@ -1,0 +1,190 @@
+@using lab1_4.Data
+@model lab1_4.Models.Project
+@{
+    ViewData["Title"] = $"Chat — {Model.Name}";
+    var messages = (IEnumerable<lab1_4.Models.ChatMessage>)ViewBag.Messages;
+    var currentUser = (string)ViewBag.CurrentUser;
+    var currentDisplayName = (string)ViewBag.CurrentDisplayName;
+    var projectUsers = (IEnumerable<AppUser>)ViewBag.ProjectUsers;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Chat: @Model.Name</h2>
+    <a asp-controller="Projects" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary btn-sm">Back to Project</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-9">
+        <div id="messageList" class="border rounded p-3 mb-3 bg-light" style="height:450px;overflow-y:auto;">
+            @foreach (var msg in messages)
+            {
+                var isMine = msg.SenderUserName == currentUser;
+                <div class="d-flex @(isMine ? "justify-content-end" : "") mb-2">
+                    <div class="card @(msg.IsPrivate ? "border-warning" : "") @(isMine ? "bg-primary text-white" : "bg-white")" style="max-width:70%;">
+                        <div class="card-body p-2">
+                            @if (!isMine)
+                            {
+                                <strong class="d-block small">@msg.SenderDisplayName</strong>
+                            }
+                            @if (msg.IsPrivate)
+                            {
+                                <span class="badge bg-warning text-dark small">Private @(!isMine ? "from" : "to") @(isMine ? msg.RecipientUserName : msg.SenderUserName)</span>
+                            }
+                            <p class="mb-1">@msg.Content</p>
+                            @if (msg.FileUrl != null)
+                            {
+                                if (msg.FileName != null && (msg.FileName.EndsWith(".jpg") || msg.FileName.EndsWith(".png") || msg.FileName.EndsWith(".gif") || msg.FileName.EndsWith(".jpeg")))
+                                {
+                                    <img src="@msg.FileUrl" class="img-fluid rounded mt-1" style="max-height:200px;" />
+                                }
+                                else
+                                {
+                                    <a href="@msg.FileUrl" class="btn btn-sm btn-light mt-1" download>@msg.FileName</a>
+                                }
+                            }
+                            <small class="@(isMine ? "text-white-50" : "text-muted")">@msg.SentAt.ToString("HH:mm dd.MM")</small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="mb-2">
+                    <select id="recipientSelect" class="form-select form-select-sm">
+                        <option value="">Everyone (Public)</option>
+                        @foreach (var u in projectUsers.Where(u => u.UserName != currentUser))
+                        {
+                            <option value="@u.UserName">Private to @(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName)</option>
+                        }
+                    </select>
+                </div>
+                <div class="input-group">
+                    <input id="messageInput" type="text" class="form-control" placeholder="Type a message..." />
+                    <label class="btn btn-outline-secondary" for="fileInput">Attach</label>
+                    <input type="file" id="fileInput" class="d-none" />
+                    <button id="sendBtn" class="btn btn-primary">Send</button>
+                </div>
+                <div id="filePreview" class="mt-2 d-none">
+                    <span class="badge bg-secondary" id="fileLabel"></span>
+                    <button class="btn btn-sm btn-outline-danger ms-1" onclick="clearFile()">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">Team Members</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var ep in Model.EmployeeProjects)
+                {
+                    <li class="list-group-item">
+                        <small>@ep.Employee.FullName</small>
+                        <span class="badge bg-light text-dark float-end">@ep.Role</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+const projectId = @Model.Id;
+const currentUser = "@currentUser";
+const currentDisplayName = "@currentDisplayName";
+let uploadedFileUrl = null;
+let uploadedFileName = null;
+
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/hubs/projectChat")
+    .withAutomaticReconnect()
+    .build();
+
+connection.on("ReceiveMessage", (msg) => {
+    appendMessage(msg);
+    scrollToBottom();
+});
+
+async function start() {
+    await connection.start();
+    await connection.invoke("JoinProject", projectId);
+    scrollToBottom();
+}
+
+start().catch(console.error);
+
+document.getElementById("sendBtn").addEventListener("click", sendMessage);
+document.getElementById("messageInput").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+
+document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("projectId", projectId);
+    const resp = await fetch("/Chat/UploadFile", { method: "POST", body: formData });
+    const data = await resp.json();
+    uploadedFileUrl = data.url;
+    uploadedFileName = data.name;
+    document.getElementById("fileLabel").textContent = uploadedFileName;
+    document.getElementById("filePreview").classList.remove("d-none");
+});
+
+function clearFile() {
+    uploadedFileUrl = null; uploadedFileName = null;
+    document.getElementById("fileInput").value = "";
+    document.getElementById("filePreview").classList.add("d-none");
+}
+
+async function sendMessage() {
+    const content = document.getElementById("messageInput").value.trim();
+    const recipient = document.getElementById("recipientSelect").value;
+    if (!content && !uploadedFileUrl) return;
+    await connection.invoke("SendMessage", projectId, content || "", recipient || null, uploadedFileUrl, uploadedFileName);
+    document.getElementById("messageInput").value = "";
+    clearFile();
+}
+
+function appendMessage(msg) {
+    const list = document.getElementById("messageList");
+    const isMine = msg.senderUserName === currentUser;
+    const div = document.createElement("div");
+    div.className = `d-flex ${isMine ? "justify-content-end" : ""} mb-2`;
+
+    let fileHtml = "";
+    if (msg.fileUrl) {
+        const imgExts = [".jpg",".jpeg",".png",".gif"];
+        if (imgExts.some(ext => msg.fileName?.toLowerCase().endsWith(ext))) {
+            fileHtml = `<img src="${msg.fileUrl}" class="img-fluid rounded mt-1" style="max-height:200px;">`;
+        } else {
+            fileHtml = `<a href="${msg.fileUrl}" class="btn btn-sm btn-light mt-1" download>${msg.fileName}</a>`;
+        }
+    }
+
+    const privateLabel = msg.isPrivate
+        ? `<span class="badge bg-warning text-dark small">Private ${isMine ? "to " + msg.recipientUserName : "from " + msg.senderUserName}</span>`
+        : "";
+
+    div.innerHTML = `
+        <div class="card ${msg.isPrivate ? "border-warning" : ""} ${isMine ? "bg-primary text-white" : "bg-white"}" style="max-width:70%;">
+            <div class="card-body p-2">
+                ${!isMine ? `<strong class="d-block small">${msg.sender}</strong>` : ""}
+                ${privateLabel}
+                <p class="mb-1">${msg.content}</p>
+                ${fileHtml}
+                <small class="${isMine ? "text-white-50" : "text-muted"}">${msg.sentAt}</small>
+            </div>
+        </div>`;
+    list.appendChild(div);
+}
+
+function scrollToBottom() {
+    const list = document.getElementById("messageList");
+    list.scrollTop = list.scrollHeight;
+}
+</script>
+}

@@ -1,8 +1,43 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Home";
+    var stats = ViewBag.Stats;
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="jumbotron bg-dark text-white p-5 rounded mb-4">
+    <h1 class="display-4">Project Manager</h1>
+    <p class="lead">Manage your team and projects efficiently.</p>
+    @if (!User.Identity!.IsAuthenticated)
+    {
+        <a class="btn btn-primary btn-lg me-2" asp-controller="Account" asp-action="Register">Get Started</a>
+        <a class="btn btn-outline-light btn-lg" asp-controller="Account" asp-action="Login">Login</a>
+    }
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-4">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h2 class="display-4 text-primary">@stats.Employees</h2>
+                <p class="card-text">Total Employees</p>
+                <a asp-controller="Employees" asp-action="Index" class="btn btn-primary btn-sm">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h2 class="display-4 text-success">@stats.Projects</h2>
+                <p class="card-text">Total Projects</p>
+                <a asp-controller="Projects" asp-action="Index" class="btn btn-success btn-sm">View All</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h2 class="display-4 text-warning">@stats.ActiveProjects</h2>
+                <p class="card-text">Active Projects</p>
+            </div>
+        </div>
+    </div>
 </div>

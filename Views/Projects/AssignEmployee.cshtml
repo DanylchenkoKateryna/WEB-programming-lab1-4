@@ -1,0 +1,33 @@
+@model lab1_4.Models.Project
+@{ ViewData["Title"] = "Assign Employee"; }
+
+<h1>Assign Employee to @Model.Name</h1>
+<form asp-action="AssignEmployee" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="id" value="@Model.Id" />
+    <div class="row g-3 align-items-end mb-3">
+        <div class="col-md-5">
+            <label class="form-label">Select Employee</label>
+            <select name="employeeId" class="form-select">
+                @foreach (var emp in (IEnumerable<lab1_4.Models.Employee>)ViewBag.AvailableEmployees)
+                {
+                    <option value="@emp.Id">@emp.FullName – @emp.Position</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Role on Project</label>
+            <select name="role" class="form-select">
+                <option>Member</option>
+                <option>Lead</option>
+                <option>Manager</option>
+                <option>QA</option>
+                <option>Designer</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Assign</button>
+        </div>
+    </div>
+</form>
+<a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary">Back</a>
