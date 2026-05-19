@@ -9,7 +9,7 @@
             <dt class="col-sm-4">Position</dt><dd class="col-sm-8">@Model.Position</dd>
             <dt class="col-sm-4">Department</dt><dd class="col-sm-8">@Model.Department</dd>
             <dt class="col-sm-4">Hire Date</dt><dd class="col-sm-8">@Model.HireDate.ToString("dd.MM.yyyy")</dd>
-            <dt class="col-sm-4">Salary</dt><dd class="col-sm-8">@Model.Salary.ToString("C")</dd>
+            <dt class="col-sm-4">Salary</dt><dd class="col-sm-8">$@($"{Model.Salary:N2}")</dd>
         </dl>
     </div>
 </div>

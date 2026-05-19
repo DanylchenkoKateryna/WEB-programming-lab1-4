@@ -10,7 +10,6 @@ public static class DbInitializer
         var context = services.GetRequiredService<AppDbContext>();
         var logger = services.GetRequiredService<ILogger<AppDbContext>>();
 
-        // Retry until SQL Server is ready (it starts slower than the app)
         for (int attempt = 1; attempt <= 10; attempt++)
         {
             try

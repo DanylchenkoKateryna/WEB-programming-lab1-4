@@ -1,0 +1,166 @@
+@using lab1_4.Data
+@{
+    ViewData["Title"] = $"Chat with {((AppUser)ViewBag.OtherUser).DisplayName}";
+    var currentUser = (string)ViewBag.CurrentUser;
+    var otherUser = (AppUser)ViewBag.OtherUser;
+    var messages = (IEnumerable<lab1_4.Models.DirectMessage>)ViewBag.Messages;
+    var otherDisplayName = otherUser.DisplayName.Length > 0 ? otherUser.DisplayName : otherUser.UserName;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>
+        💬 @otherDisplayName
+        <span class="badge bg-secondary ms-2" style="font-size:.6rem;vertical-align:middle;">Private</span>
+    </h2>
+    <a asp-action="Inbox" class="btn btn-outline-secondary btn-sm">← All Messages</a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-9">
+        <div id="messageList" class="border rounded p-3 mb-3 bg-light" style="height:500px;overflow-y:auto;">
+            @foreach (var msg in messages)
+            {
+                var isMine = msg.SenderUserName == currentUser;
+                <div class="d-flex @(isMine ? "justify-content-end" : "") mb-2">
+                    <div class="card @(isMine ? "bg-primary text-white" : "bg-white")" style="max-width:70%;">
+                        <div class="card-body p-2">
+                            @if (!isMine)
+                            {
+                                <strong class="d-block small">@msg.SenderDisplayName</strong>
+                            }
+                            <p class="mb-1">@msg.Content</p>
+                            @if (msg.FileUrl != null)
+                            {
+                                var imgExts = new[] { ".jpg", ".jpeg", ".png", ".gif" };
+                                if (imgExts.Any(e => msg.FileName?.ToLower().EndsWith(e) == true))
+                                {
+                                    <img src="@msg.FileUrl" class="img-fluid rounded mt-1" style="max-height:200px;" />
+                                }
+                                else
+                                {
+                                    <a href="@msg.FileUrl" class="btn btn-sm @(isMine ? "btn-light" : "btn-outline-secondary") mt-1" download>📎 @msg.FileName</a>
+                                }
+                            }
+                            <small class="@(isMine ? "text-white-50" : "text-muted")">@msg.SentAt.ToString("HH:mm dd.MM")</small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="input-group">
+                    <input id="messageInput" type="text" class="form-control"
+                           placeholder="Message @otherDisplayName…" />
+                    <label class="btn btn-outline-secondary" for="fileInput" title="Attach file">📎</label>
+                    <input type="file" id="fileInput" class="d-none" />
+                    <button id="sendBtn" class="btn btn-primary">Send</button>
+                </div>
+                <div id="filePreview" class="mt-2 d-none">
+                    <span class="badge bg-secondary" id="fileLabel"></span>
+                    <button class="btn btn-sm btn-outline-danger ms-1" onclick="clearFile()">Remove</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+<script>
+const currentUser = "@currentUser";
+const recipientUserName = "@otherUser.UserName";
+let uploadedFileUrl = null;
+let uploadedFileName = null;
+
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/hubs/projectChat")
+    .withAutomaticReconnect()
+    .build();
+
+// Only show messages that belong to THIS conversation
+connection.on("ReceiveDirectMessage", (msg) => {
+    const isThisConversation =
+        (msg.senderUserName === currentUser && "@otherUser.UserName" === recipientUserName) ||
+        (msg.senderUserName === recipientUserName);
+    if (isThisConversation) {
+        appendMessage(msg);
+        scrollToBottom();
+    }
+});
+
+async function start() {
+    await connection.start();
+    scrollToBottom();
+}
+start().catch(console.error);
+
+document.getElementById("sendBtn").addEventListener("click", sendMessage);
+document.getElementById("messageInput").addEventListener("keypress", e => {
+    if (e.key === "Enter") sendMessage();
+});
+
+document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("projectId", 0);
+    const resp = await fetch("/Chat/UploadFile", { method: "POST", body: formData });
+    const data = await resp.json();
+    uploadedFileUrl = data.url;
+    uploadedFileName = data.name;
+    document.getElementById("fileLabel").textContent = uploadedFileName;
+    document.getElementById("filePreview").classList.remove("d-none");
+});
+
+function clearFile() {
+    uploadedFileUrl = null;
+    uploadedFileName = null;
+    document.getElementById("fileInput").value = "";
+    document.getElementById("filePreview").classList.add("d-none");
+}
+
+async function sendMessage() {
+    const content = document.getElementById("messageInput").value.trim();
+    if (!content && !uploadedFileUrl) return;
+    await connection.invoke("SendDirectMessage", recipientUserName, content || "", uploadedFileUrl, uploadedFileName);
+    document.getElementById("messageInput").value = "";
+    clearFile();
+}
+
+function appendMessage(msg) {
+    const list = document.getElementById("messageList");
+    const isMine = msg.senderUserName === currentUser;
+
+    let fileHtml = "";
+    if (msg.fileUrl) {
+        const imgExts = [".jpg", ".jpeg", ".png", ".gif"];
+        if (imgExts.some(ext => msg.fileName?.toLowerCase().endsWith(ext))) {
+            fileHtml = `<img src="${msg.fileUrl}" class="img-fluid rounded mt-1" style="max-height:200px;">`;
+        } else {
+            fileHtml = `<a href="${msg.fileUrl}" class="btn btn-sm btn-light mt-1" download>📎 ${msg.fileName}</a>`;
+        }
+    }
+
+    const div = document.createElement("div");
+    div.className = `d-flex ${isMine ? "justify-content-end" : ""} mb-2`;
+    div.innerHTML = `
+        <div class="card ${isMine ? "bg-primary text-white" : "bg-white"}" style="max-width:70%;">
+            <div class="card-body p-2">
+                ${!isMine ? `<strong class="d-block small">${msg.sender}</strong>` : ""}
+                <p class="mb-1">${msg.content}</p>
+                ${fileHtml}
+                <small class="${isMine ? "text-white-50" : "text-muted"}">${msg.sentAt}</small>
+            </div>
+        </div>`;
+    list.appendChild(div);
+}
+
+function scrollToBottom() {
+    const el = document.getElementById("messageList");
+    el.scrollTop = el.scrollHeight;
+}
+</script>
+}

@@ -1,32 +1,22 @@
-using lab1_4.Data;
+using lab1_4.Models;
+using lab1_4.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace lab1_4.Controllers;
 
 public class HomeController : Controller
 {
-    private readonly AppDbContext _context;
+    private readonly IHomeService _service;
 
-    public HomeController(AppDbContext context)
-    {
-        _context = context;
-    }
+    public HomeController(IHomeService service) => _service = service;
 
     public async Task<IActionResult> Index()
     {
-        var stats = new
-        {
-            Employees = await _context.Employees.CountAsync(),
-            Projects = await _context.Projects.CountAsync(),
-            ActiveProjects = await _context.Projects.CountAsync(p => p.Status == lab1_4.Models.ProjectStatus.Active)
-        };
-        ViewBag.Stats = stats;
+        ViewBag.Stats = await _service.GetStatsAsync();
         return View();
     }
 
-    public IActionResult Privacy() => View();
-
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error() => View(new lab1_4.Models.ErrorViewModel { RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    public IActionResult Error() =>
+        View(new ErrorViewModel { RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier });
 }

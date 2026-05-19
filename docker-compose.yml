@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -6,6 +5,7 @@ services:
       - ACCEPT_EULA=Y
       - SA_PASSWORD=YourStrong@Passw0rd
       - MSSQL_PID=Express
+      - MSSQL_ENCRYPT=OPTIONAL
     ports:
       - "1433:1433"
     volumes:
@@ -23,9 +23,20 @@ services:
       - "8080:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - uploads_data:/app/wwwroot/uploads
     depends_on:
       db:
         condition: service_healthy
 
+
+  adminer:
+    image: adminer
+    ports:
+      - "8082:8080"
+    depends_on:
+      - db
+
 volumes:
   mssql_data:
+  uploads_data:

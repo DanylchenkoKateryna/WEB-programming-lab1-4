@@ -1,3 +1,4 @@
+using lab1_4.Data;
 using System.ComponentModel.DataAnnotations;
 
 namespace lab1_4.Models;
@@ -39,6 +40,9 @@ public class Employee
 
     [Display(Name = "Full Name")]
     public string FullName => $"{FirstName} {LastName}";
+
+    public string? UserId { get; set; }
+    public AppUser? User { get; set; }
 
     public ICollection<EmployeeProject> EmployeeProjects { get; set; } = new List<EmployeeProject>();
 }

@@ -12,6 +12,7 @@ public class AppDbContext : IdentityDbContext<AppUser>
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<EmployeeProject> EmployeeProjects => Set<EmployeeProject>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<DirectMessage> DirectMessages => Set<DirectMessage>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -37,5 +38,12 @@ public class AppDbContext : IdentityDbContext<AppUser>
             .HasOne(ep => ep.Project)
             .WithMany(p => p.EmployeeProjects)
             .HasForeignKey(ep => ep.ProjectId);
+
+        builder.Entity<Employee>()
+            .HasOne<AppUser>(e => e.User)
+            .WithMany()
+            .HasForeignKey(e => e.UserId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

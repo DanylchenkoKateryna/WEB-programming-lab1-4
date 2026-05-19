@@ -1,14 +1,17 @@
+@using lab1_4.Data
 @model lab1_4.Models.Employee
 @{ ViewData["Title"] = "Edit Employee"; }
 
 <h1>Edit Employee</h1>
-<div class="alert alert-info">Changes are saved to session. Click <strong>Save</strong> to commit to database.</div>
 <div class="row">
     <div class="col-md-6">
         <form asp-action="Edit" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="Id" />
-            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+            {
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+            }
 
             <div class="mb-3">
                 <label asp-for="FirstName" class="form-label"></label>
@@ -42,11 +45,30 @@
             </div>
             <div class="mb-3">
                 <label asp-for="Salary" class="form-label"></label>
-                <input asp-for="Salary" class="form-control" />
+                <input asp-for="Salary" class="form-control" type="number" step="0.01" min="0" />
                 <span asp-validation-for="Salary" class="text-danger"></span>
             </div>
 
-            <button type="submit" class="btn btn-primary">Save to Database</button>
+            <div class="mb-3">
+                <label class="form-label">Linked User Account</label>
+                <select name="linkedUserId" class="form-select">
+                    <option value="">— None —</option>
+                    @foreach (var u in (IEnumerable<AppUser>)(ViewBag.AllUsers ?? new List<AppUser>()))
+                    {
+                        if (Model.UserId == u.Id)
+                        {
+                            <option value="@u.Id" selected>@(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName) (@u.Email)</option>
+                        }
+                        else
+                        {
+                            <option value="@u.Id">@(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName) (@u.Email)</option>
+                        }
+                    }
+                </select>
+                <div class="form-text">Links this employee to a user account so they can view their profile.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save</button>
             <a asp-action="Index" class="btn btn-secondary">Cancel</a>
         </form>
     </div>

@@ -7,6 +7,9 @@
         @if (User.Identity?.IsAuthenticated == true)
         {
             <a asp-controller="Chat" asp-action="Index" asp-route-projectId="@Model.Id" class="btn btn-info">Open Chat</a>
+        }
+        @if (User.IsInRole("Admin"))
+        {
             <a asp-action="AssignEmployee" asp-route-id="@Model.Id" class="btn btn-secondary">Assign Employee</a>
             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Edit</a>
         }
@@ -21,7 +24,7 @@
             <dt class="col-sm-4">Priority</dt><dd class="col-sm-8"><span class="badge bg-dark">@Model.Priority</span></dd>
             <dt class="col-sm-4">Start</dt><dd class="col-sm-8">@Model.StartDate.ToString("dd.MM.yyyy")</dd>
             <dt class="col-sm-4">End</dt><dd class="col-sm-8">@(Model.EndDate?.ToString("dd.MM.yyyy") ?? "—")</dd>
-            <dt class="col-sm-4">Budget</dt><dd class="col-sm-8">@Model.Budget.ToString("C")</dd>
+            <dt class="col-sm-4">Budget</dt><dd class="col-sm-8">$@($"{Model.Budget:N2}")</dd>
             <dt class="col-sm-4">Client</dt><dd class="col-sm-8">@(Model.ClientName ?? "—")</dd>
         </dl>
         <p>@Model.Description</p>
@@ -38,7 +41,7 @@
                         <td>@ep.Role</td>
                         <td>@ep.AssignedAt.ToString("dd.MM.yyyy")</td>
                         <td>
-                            @if (User.Identity?.IsAuthenticated == true)
+                            @if (User.IsInRole("Admin"))
                             {
                                 <form asp-action="RemoveEmployee" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()

@@ -1,156 +1,116 @@
-using lab1_4.Data;
 using lab1_4.Models;
+using lab1_4.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace lab1_4.Controllers;
 
 public class ProjectsController : Controller
 {
-    private readonly AppDbContext _context;
-    private const string SessionKeyPrefix = "Project_";
-
-    public ProjectsController(AppDbContext context) => _context = context;
-
-    public async Task<IActionResult> Index()
+    private readonly IProjectService _service;
+    private const string SessionPrefix = "Project_";
+    private static readonly JsonSerializerOptions _jsonOptions = new()
     {
-        var projects = await _context.Projects
-            .Include(p => p.EmployeeProjects)
-            .ThenInclude(ep => ep.Employee)
-            .ToListAsync();
-        return View(projects);
-    }
+        ReferenceHandler = ReferenceHandler.IgnoreCycles
+    };
+
+    public ProjectsController(IProjectService service) => _service = service;
+
+    public async Task<IActionResult> Index() =>
+        View(await _service.GetAllAsync());
 
     public async Task<IActionResult> Details(int id)
     {
-        var project = await _context.Projects
-            .Include(p => p.EmployeeProjects)
-            .ThenInclude(ep => ep.Employee)
-            .FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null) return NotFound();
-        return View(project);
+        var project = await _service.GetByIdAsync(id);
+        return project == null ? NotFound() : View(project);
     }
 
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public IActionResult Create()
     {
-        var sessionKey = $"{SessionKeyPrefix}Create";
-        var json = HttpContext.Session.GetString(sessionKey);
-        var model = json != null ? JsonSerializer.Deserialize<Project>(json) : new Project();
-        return View(model);
+        var json = HttpContext.Session.GetString($"{SessionPrefix}Create");
+        return View(json != null ? JsonSerializer.Deserialize<Project>(json, _jsonOptions) : new Project());
     }
 
-    [HttpPost, Authorize, ValidateAntiForgeryToken]
+    [HttpPost, Authorize(Roles = "Admin"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(Project project)
     {
-        var sessionKey = $"{SessionKeyPrefix}Create";
+        var key = $"{SessionPrefix}Create";
         if (!ModelState.IsValid)
         {
-            HttpContext.Session.SetString(sessionKey, JsonSerializer.Serialize(project));
+            HttpContext.Session.SetString(key, JsonSerializer.Serialize(project, _jsonOptions));
             return View(project);
         }
-        _context.Projects.Add(project);
-        await _context.SaveChangesAsync();
-        HttpContext.Session.Remove(sessionKey);
+        await _service.CreateAsync(project);
+        HttpContext.Session.Remove(key);
         return RedirectToAction(nameof(Index));
     }
 
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Edit(int id)
     {
-        var sessionKey = $"{SessionKeyPrefix}Edit_{id}";
-        var json = HttpContext.Session.GetString(sessionKey);
-        Project? project;
+        var key = $"{SessionPrefix}Edit_{id}";
+        var json = HttpContext.Session.GetString(key);
         if (json != null)
-        {
-            project = JsonSerializer.Deserialize<Project>(json);
-        }
-        else
-        {
-            project = await _context.Projects.FindAsync(id);
-            if (project == null) return NotFound();
-            HttpContext.Session.SetString(sessionKey, JsonSerializer.Serialize(project));
-        }
+            return View(JsonSerializer.Deserialize<Project>(json, _jsonOptions));
+
+        var project = await _service.GetByIdAsync(id);
+        if (project == null) return NotFound();
+        HttpContext.Session.SetString(key, JsonSerializer.Serialize(project, _jsonOptions));
         return View(project);
     }
 
-    [HttpPost, Authorize, ValidateAntiForgeryToken]
+    [HttpPost, Authorize(Roles = "Admin"), ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(int id, Project project)
     {
-        if (id != project.Id) return BadRequest();
-        var sessionKey = $"{SessionKeyPrefix}Edit_{id}";
+        var key = $"{SessionPrefix}Edit_{id}";
         if (!ModelState.IsValid)
         {
-            HttpContext.Session.SetString(sessionKey, JsonSerializer.Serialize(project));
+            HttpContext.Session.SetString(key, JsonSerializer.Serialize(project, _jsonOptions));
             return View(project);
         }
-        _context.Update(project);
-        await _context.SaveChangesAsync();
-        HttpContext.Session.Remove(sessionKey);
+        var updated = await _service.UpdateAsync(id, project);
+        if (!updated) return BadRequest();
+        HttpContext.Session.Remove(key);
         return RedirectToAction(nameof(Index));
     }
 
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
-        var project = await _context.Projects
-            .Include(p => p.EmployeeProjects)
-            .FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null) return NotFound();
-        return View(project);
+        var project = await _service.GetByIdAsync(id);
+        return project == null ? NotFound() : View(project);
     }
 
-    [HttpPost, ActionName("Delete"), Authorize, ValidateAntiForgeryToken]
+    [HttpPost, ActionName("Delete"), Authorize(Roles = "Admin"), ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var project = await _context.Projects.FindAsync(id);
-        if (project != null)
-        {
-            _context.Projects.Remove(project);
-            await _context.SaveChangesAsync();
-        }
+        await _service.DeleteAsync(id);
         return RedirectToAction(nameof(Index));
     }
 
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> AssignEmployee(int id)
     {
-        var project = await _context.Projects
-            .Include(p => p.EmployeeProjects)
-            .ThenInclude(ep => ep.Employee)
-            .FirstOrDefaultAsync(p => p.Id == id);
+        var (project, available) = await _service.GetAssignDataAsync(id);
         if (project == null) return NotFound();
-
-        var assignedIds = project.EmployeeProjects.Select(ep => ep.EmployeeId).ToHashSet();
-        ViewBag.AvailableEmployees = await _context.Employees
-            .Where(e => !assignedIds.Contains(e.Id))
-            .ToListAsync();
+        ViewBag.AvailableEmployees = available;
         return View(project);
     }
 
-    [HttpPost, Authorize, ValidateAntiForgeryToken]
+    [HttpPost, Authorize(Roles = "Admin"), ValidateAntiForgeryToken]
     public async Task<IActionResult> AssignEmployee(int id, int employeeId, string role = "Member")
     {
-        var exists = await _context.EmployeeProjects.AnyAsync(ep => ep.ProjectId == id && ep.EmployeeId == employeeId);
-        if (!exists)
-        {
-            _context.EmployeeProjects.Add(new EmployeeProject { ProjectId = id, EmployeeId = employeeId, Role = role });
-            await _context.SaveChangesAsync();
-        }
+        await _service.AssignEmployeeAsync(id, employeeId, role);
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [HttpPost, Authorize, ValidateAntiForgeryToken]
+    [HttpPost, Authorize(Roles = "Admin"), ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveEmployee(int projectId, int employeeId)
     {
-        var ep = await _context.EmployeeProjects.FindAsync(employeeId, projectId);
-        if (ep != null)
-        {
-            _context.EmployeeProjects.Remove(ep);
-            await _context.SaveChangesAsync();
-        }
+        await _service.RemoveEmployeeAsync(projectId, employeeId);
         return RedirectToAction(nameof(Details), new { id = projectId });
     }
 }

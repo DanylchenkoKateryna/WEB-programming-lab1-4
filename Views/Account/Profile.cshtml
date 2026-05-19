@@ -1,0 +1,99 @@
+@using lab1_4.Models
+@model lab1_4.Data.AppUser
+@{
+    ViewData["Title"] = "My Profile";
+    var employee = ViewBag.Employee as Employee;
+    var roles = ViewBag.Roles as IList<string> ?? new List<string>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>My Profile</h1>
+    @if (User.IsInRole("Admin"))
+    {
+        <a asp-controller="Admin" asp-action="Index" class="btn btn-warning">Admin Panel</a>
+    }
+</div>
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header bg-dark text-white">Account</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Display Name</dt>
+                    <dd class="col-sm-8">@Model.DisplayName</dd>
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">@Model.Email</dd>
+                    <dt class="col-sm-4">Role</dt>
+                    <dd class="col-sm-8">
+                        @foreach (var role in roles)
+                        {
+                            <span class="badge @(role == "Admin" ? "bg-danger" : "bg-secondary") me-1">@role</span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        @if (employee != null)
+        {
+            <div class="card">
+                <div class="card-header bg-primary text-white">Employee Profile</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Full Name</dt>
+                        <dd class="col-sm-8">@employee.FullName</dd>
+                        <dt class="col-sm-4">Position</dt>
+                        <dd class="col-sm-8">@employee.Position</dd>
+                        <dt class="col-sm-4">Department</dt>
+                        <dd class="col-sm-8">@employee.Department</dd>
+                        <dt class="col-sm-4">Hire Date</dt>
+                        <dd class="col-sm-8">@employee.HireDate.ToString("dd.MM.yyyy")</dd>
+                        <dt class="col-sm-4">Salary</dt>
+                        <dd class="col-sm-8">$@($"{employee.Salary:N2}")</dd>
+                    </dl>
+                </div>
+            </div>
+
+            @if (employee.EmployeeProjects.Any())
+            {
+                <div class="card mt-3">
+                    <div class="card-header">My Projects (@employee.EmployeeProjects.Count)</div>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var ep in employee.EmployeeProjects)
+                        {
+                            var badgeColor = ep.Project.Status switch {
+                                ProjectStatus.Active => "success",
+                                ProjectStatus.Completed => "secondary",
+                                ProjectStatus.OnHold => "warning",
+                                ProjectStatus.Cancelled => "danger",
+                                _ => "info"
+                            };
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <a asp-controller="Projects" asp-action="Details" asp-route-id="@ep.Project.Id">@ep.Project.Name</a>
+                                    <span class="badge bg-light text-dark ms-2">@ep.Role</span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-@badgeColor">@ep.Project.Status</span>
+                                    <a asp-controller="Chat" asp-action="Index" asp-route-projectId="@ep.Project.Id" class="btn btn-sm btn-outline-info">Chat</a>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body text-muted">
+                    <p>Your account is not linked to an employee profile yet.</p>
+                    <p>Contact an administrator to link your account.</p>
+                </div>
+            </div>
+        }
+    </div>
+</div>

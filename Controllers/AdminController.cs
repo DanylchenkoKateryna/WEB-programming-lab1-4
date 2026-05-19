@@ -1,73 +1,69 @@
 using lab1_4.Data;
-using lab1_4.Models.ViewModels;
+using lab1_4.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace lab1_4.Controllers;
 
 [Authorize(Roles = "Admin")]
 public class AdminController : Controller
 {
+    private readonly IAdminService _service;
     private readonly UserManager<AppUser> _userManager;
-    private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly SignInManager<AppUser> _signInManager;
 
-    public AdminController(UserManager<AppUser> userManager, RoleManager<IdentityRole> roleManager)
+    public AdminController(
+        IAdminService service,
+        UserManager<AppUser> userManager,
+        SignInManager<AppUser> signInManager)
     {
+        _service = service;
         _userManager = userManager;
-        _roleManager = roleManager;
+        _signInManager = signInManager;
     }
 
     public async Task<IActionResult> Index()
     {
-        var users = await _userManager.Users.ToListAsync();
-        var result = new List<AdminUserViewModel>();
-        foreach (var user in users)
-        {
-            result.Add(new AdminUserViewModel
-            {
-                Id = user.Id,
-                UserName = user.UserName ?? string.Empty,
-                Email = user.Email ?? string.Empty,
-                Roles = await _userManager.GetRolesAsync(user)
-            });
-        }
-        return View(result);
+        var (users, employees) = await _service.GetDashboardAsync();
+        ViewBag.AllEmployees = employees;
+        return View(users);
     }
 
     public async Task<IActionResult> EditRole(string id)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return NotFound();
-        var allRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
-        return View(new ChangeRoleViewModel
-        {
-            UserId = user.Id,
-            UserName = user.UserName ?? string.Empty,
-            UserRoles = await _userManager.GetRolesAsync(user),
-            AllRoles = allRoles
-        });
+        var model = await _service.GetEditRoleDataAsync(id);
+        return model == null ? NotFound() : View(model);
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> EditRole(string userId, List<string> roles)
     {
-        var user = await _userManager.FindByIdAsync(userId);
-        if (user == null) return NotFound();
-        var currentRoles = await _userManager.GetRolesAsync(user);
-        await _userManager.RemoveFromRolesAsync(user, currentRoles);
-        if (roles.Any())
-            await _userManager.AddToRolesAsync(user, roles);
+        await _service.UpdateRolesAsync(userId, roles);
+
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == currentUserId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+                await _signInManager.RefreshSignInAsync(user);
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteUser(string id)
     {
-        var user = await _userManager.FindByIdAsync(id);
-        if (user != null)
-            await _userManager.DeleteAsync(user);
+        await _service.DeleteUserAsync(id);
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> LinkEmployee(string userId, int? employeeId)
+    {
+        await _service.LinkEmployeeAsync(userId, employeeId);
         return RedirectToAction(nameof(Index));
     }
 }

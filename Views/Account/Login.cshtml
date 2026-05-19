@@ -6,7 +6,10 @@
         <form asp-action="Login" method="post">
             @Html.AntiForgeryToken()
             <input type="hidden" name="returnUrl" value="@ViewBag.ReturnUrl" />
-            <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+            @if (!ViewData.ModelState.IsValid && ViewData.ModelState.ErrorCount > 0)
+            {
+                <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+            }
             <div class="mb-3">
                 <label class="form-label">Email</label>
                 <input type="email" name="email" class="form-control" required />

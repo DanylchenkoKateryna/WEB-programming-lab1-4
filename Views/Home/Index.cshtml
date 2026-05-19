@@ -15,28 +15,36 @@
 
 <div class="row g-4 mb-5">
     <div class="col-md-4">
-        <div class="card text-center border-primary">
-            <div class="card-body">
-                <h2 class="display-4 text-primary">@stats.Employees</h2>
-                <p class="card-text">Total Employees</p>
+        <div class="card text-center border-primary h-100">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <h2 class="display-4 text-primary">@stats.Employees</h2>
+                    <p class="card-text">Total Employees</p>
+                </div>
                 <a asp-controller="Employees" asp-action="Index" class="btn btn-primary btn-sm">View All</a>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card text-center border-success">
-            <div class="card-body">
-                <h2 class="display-4 text-success">@stats.Projects</h2>
-                <p class="card-text">Total Projects</p>
+        <div class="card text-center border-success h-100">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <h2 class="display-4 text-success">@stats.Projects</h2>
+                    <p class="card-text">Total Projects</p>
+                </div>
                 <a asp-controller="Projects" asp-action="Index" class="btn btn-success btn-sm">View All</a>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card text-center border-warning">
-            <div class="card-body">
-                <h2 class="display-4 text-warning">@stats.ActiveProjects</h2>
-                <p class="card-text">Active Projects</p>
+        <div class="card text-center border-warning h-100">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <h2 class="display-4 text-warning">@stats.ActiveProjects</h2>
+                    <p class="card-text">Active Projects</p>
+                </div>
+                <a asp-controller="Projects" asp-action="Index"
+                   asp-route-status="Active" class="btn btn-warning btn-sm">View Active</a>
             </div>
         </div>
     </div>

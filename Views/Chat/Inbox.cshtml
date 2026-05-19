@@ -1,0 +1,97 @@
+@using lab1_4.Data
+@model IEnumerable<lab1_4.Models.ViewModels.ConversationSummary>
+@{
+    ViewData["Title"] = "Messages";
+    var allUsers = (IEnumerable<AppUser>)ViewBag.AllUsers;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>💬 Messages</h1>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newChatModal">
+        New Conversation
+    </button>
+</div>
+
+<div class="row g-4">
+    <!-- Conversations list -->
+    <div class="col-md-8">
+        @if (!Model.Any())
+        {
+            <div class="text-center text-muted py-5">
+                <p class="fs-5">No conversations yet.</p>
+                <p>Start a new one by clicking <strong>New Conversation</strong>.</p>
+            </div>
+        }
+        else
+        {
+            <div class="list-group">
+                @foreach (var conv in Model)
+                {
+                    <a asp-action="Direct" asp-route-userName="@conv.OtherUserName"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-start py-3 @(conv.UnreadCount > 0 ? "fw-bold" : "")">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center"
+                                 style="width:42px;height:42px;font-size:1.1rem;flex-shrink:0;">
+                                @conv.OtherDisplayName[0]
+                            </div>
+                            <div>
+                                <div>@conv.OtherDisplayName</div>
+                                <small class="@(conv.UnreadCount > 0 ? "text-dark" : "text-muted")">
+                                    @conv.LastMessageContent
+                                </small>
+                            </div>
+                        </div>
+                        <div class="text-end flex-shrink-0 ms-3">
+                            <small class="text-muted d-block">@conv.LastMessageAt.ToString("dd.MM HH:mm")</small>
+                            @if (conv.UnreadCount > 0)
+                            {
+                                <span class="badge bg-primary rounded-pill">@conv.UnreadCount</span>
+                            }
+                        </div>
+                    </a>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Quick-start sidebar -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">All Users</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var u in allUsers)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>@(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName)</span>
+                        <a asp-action="Direct" asp-route-userName="@u.UserName"
+                           class="btn btn-sm btn-outline-primary">Chat</a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- New conversation modal -->
+<div class="modal fade" id="newChatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New Conversation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group">
+                    @foreach (var u in allUsers)
+                    {
+                        <a asp-action="Direct" asp-route-userName="@u.UserName"
+                           class="list-group-item list-group-item-action">
+                            @(u.DisplayName.Length > 0 ? u.DisplayName : u.UserName)
+                            <small class="text-muted ms-2">@u.Email</small>
+                        </a>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

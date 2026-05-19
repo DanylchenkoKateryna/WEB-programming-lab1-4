@@ -1,4 +1,5 @@
 using lab1_4.Data;
+using lab1_4.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,55 +10,72 @@ namespace lab1_4.Controllers;
 [Authorize]
 public class ChatController : Controller
 {
-    private readonly AppDbContext _context;
+    private readonly IChatService _service;
     private readonly UserManager<AppUser> _userManager;
 
-    public ChatController(AppDbContext context, UserManager<AppUser> userManager)
+    public ChatController(IChatService service, UserManager<AppUser> userManager)
     {
-        _context = context;
+        _service = service;
         _userManager = userManager;
     }
 
+    // GET /Chat/Index?projectId=1  — project group chat
     public async Task<IActionResult> Index(int projectId)
     {
-        var project = await _context.Projects
-            .Include(p => p.EmployeeProjects)
-            .ThenInclude(ep => ep.Employee)
-            .Include(p => p.ChatMessages)
-            .FirstOrDefaultAsync(p => p.Id == projectId);
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var (project, messages, chatUsers) = await _service.GetChatDataAsync(projectId, user.UserName!);
         if (project == null) return NotFound();
 
-        var user = await _userManager.GetUserAsync(User);
-        ViewBag.CurrentUser = user?.UserName ?? string.Empty;
-        ViewBag.CurrentDisplayName = user?.DisplayName ?? user?.UserName ?? string.Empty;
-
-        var projectUsers = await _context.EmployeeProjects
-            .Where(ep => ep.ProjectId == projectId)
-            .ToListAsync();
-
-        var messages = await _context.ChatMessages
-            .Where(m => m.ProjectId == projectId &&
-                (!m.IsPrivate || m.SenderUserName == user!.UserName || m.RecipientUserName == user.UserName))
-            .OrderBy(m => m.SentAt)
-            .ToListAsync();
-
+        ViewBag.CurrentUser = user.UserName;
+        ViewBag.CurrentDisplayName = user.DisplayName.Length > 0 ? user.DisplayName : user.UserName;
         ViewBag.Messages = messages;
-        ViewBag.ProjectUsers = await _userManager.Users.ToListAsync();
+        ViewBag.ProjectUsers = chatUsers;
         return View(project);
     }
 
+    // GET /Chat/Inbox  — list of all DM conversations
+    public async Task<IActionResult> Inbox()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return Challenge();
+
+        var summaries = await _service.GetInboxAsync(user.UserName!);
+
+        // All users except self for "New conversation" list
+        ViewBag.AllUsers = await _userManager.Users
+            .Where(u => u.UserName != user.UserName)
+            .ToListAsync();
+
+        return View(summaries);
+    }
+
+    // GET /Chat/Direct?userName=other@example.com  — private chat with one user
+    public async Task<IActionResult> Direct(string userName)
+    {
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser == null) return Challenge();
+
+        var (otherUser, messages, _) = await _service.GetDirectChatDataAsync(currentUser.UserName!, userName);
+        if (otherUser == null) return NotFound();
+
+        ViewBag.CurrentUser = currentUser.UserName;
+        ViewBag.CurrentDisplayName = currentUser.DisplayName.Length > 0
+            ? currentUser.DisplayName : currentUser.UserName;
+        ViewBag.OtherUser = otherUser;
+        ViewBag.Messages = messages;
+        return View();
+    }
+
+    // POST /Chat/UploadFile
     [HttpPost]
     public async Task<IActionResult> UploadFile(IFormFile file, int projectId)
     {
         if (file == null || file.Length == 0)
-            return BadRequest("No file");
+            return BadRequest("No file provided.");
 
-        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
-        Directory.CreateDirectory(uploadsDir);
-        var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(file.FileName)}";
-        var filePath = Path.Combine(uploadsDir, fileName);
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream);
-        return Json(new { url = $"/uploads/{fileName}", name = file.FileName });
+        var (url, name) = await _service.UploadFileAsync(file);
+        return Json(new { url, name });
     }
 }

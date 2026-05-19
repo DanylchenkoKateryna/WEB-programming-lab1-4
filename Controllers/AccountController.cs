@@ -1,19 +1,15 @@
-using lab1_4.Data;
-using Microsoft.AspNetCore.Identity;
+using lab1_4.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace lab1_4.Controllers;
 
 public class AccountController : Controller
 {
-    private readonly UserManager<AppUser> _userManager;
-    private readonly SignInManager<AppUser> _signInManager;
+    private readonly IAccountService _service;
 
-    public AccountController(UserManager<AppUser> userManager, SignInManager<AppUser> signInManager)
-    {
-        _userManager = userManager;
-        _signInManager = signInManager;
-    }
+    public AccountController(IAccountService service) => _service = service;
 
     [HttpGet]
     public IActionResult Register() => View();
@@ -21,19 +17,19 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(string email, string password, string displayName)
     {
+        ViewBag.Email = email;
+        ViewBag.DisplayName = displayName;
+
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
         {
             ModelState.AddModelError(string.Empty, "Email and password are required.");
             return View();
         }
-        var user = new AppUser { UserName = email, Email = email, DisplayName = displayName ?? email, EmailConfirmed = true };
-        var result = await _userManager.CreateAsync(user, password);
+
+        var result = await _service.RegisterAsync(email, password, displayName);
         if (result.Succeeded)
-        {
-            await _userManager.AddToRoleAsync(user, "User");
-            await _signInManager.SignInAsync(user, isPersistent: false);
             return RedirectToAction("Index", "Home");
-        }
+
         foreach (var error in result.Errors)
             ModelState.AddModelError(string.Empty, error.Description);
         return View();
@@ -49,9 +45,10 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(string email, string password, string? returnUrl = null)
     {
-        var result = await _signInManager.PasswordSignInAsync(email, password, isPersistent: false, lockoutOnFailure: false);
+        var result = await _service.LoginAsync(email, password);
         if (result.Succeeded)
             return LocalRedirect(returnUrl ?? "/");
+
         ModelState.AddModelError(string.Empty, "Invalid login attempt.");
         ViewBag.ReturnUrl = returnUrl;
         return View();
@@ -60,8 +57,22 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
-        await _signInManager.SignOutAsync();
+        await _service.LogoutAsync();
         return RedirectToAction("Index", "Home");
+    }
+
+    [Authorize]
+    public async Task<IActionResult> Profile()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Challenge();
+
+        var (user, employee, roles) = await _service.GetProfileAsync(userId);
+        if (user == null) return Challenge();
+
+        ViewBag.Employee = employee;
+        ViewBag.Roles = roles;
+        return View(user);
     }
 
     public IActionResult AccessDenied() => View();

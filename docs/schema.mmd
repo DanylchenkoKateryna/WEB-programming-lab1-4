@@ -1,0 +1,34 @@
+erDiagram
+
+    Employees {
+        int Id PK
+        nvarchar FirstName
+        nvarchar LastName
+        nvarchar Email
+        nvarchar Position
+        nvarchar Department
+        datetime2 HireDate
+        decimal Salary
+    }
+
+    Projects {
+        int Id PK
+        nvarchar Name
+        nvarchar Description
+        int Status
+        int Priority
+        datetime2 StartDate
+        datetime2 EndDate
+        decimal Budget
+        nvarchar ClientName
+    }
+
+    EmployeeProjects {
+        int EmployeeId PK,FK
+        int ProjectId PK,FK
+        nvarchar Role
+        datetime2 AssignedAt
+    }
+
+    Employees ||--o{ EmployeeProjects : "works on"
+    Projects ||--o{ EmployeeProjects : "has team"

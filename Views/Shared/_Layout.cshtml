@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
     <header>
         <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
             <div class="container">
@@ -25,6 +25,12 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-controller="Employees" asp-action="Index">Employees</a>
                         </li>
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Chat" asp-action="Inbox">💬 Messages</a>
+                            </li>
+                        }
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
@@ -38,6 +44,8 @@
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">@User.Identity.Name</a>
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">My Profile</a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <form asp-controller="Account" asp-action="Logout" method="post">
                                             @Html.AntiForgeryToken()
@@ -57,10 +65,10 @@
             </div>
         </nav>
     </header>
-    <div class="container mt-4">
+    <div class="container mt-4 flex-grow-1">
         @RenderBody()
     </div>
-    <footer class="border-top footer text-muted mt-5 py-3 bg-light">
+    <footer class="border-top footer text-muted mt-auto py-3 bg-light">
         <div class="container text-center">&copy; 2026 ProjectManager</div>
     </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
